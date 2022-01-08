@@ -6,12 +6,23 @@ import {
   Links,
   Meta,
   ErrorBoundaryComponent,
+  useLoaderData,
+  LoaderFunction,
 } from "remix";
 import globalStylesUrl from "~/styles/global.css";
+import { getUser } from "~/utils/session.server";
 
 interface DocumentProps {
   title?: string;
 }
+
+export const loader: LoaderFunction = async ({ request }) => {
+  const user = await getUser(request);
+  const data = {
+    user,
+  };
+  return data;
+};
 
 export const meta = () => {
   const description = "A cool blog built with Remix.";
@@ -26,6 +37,8 @@ export const meta = () => {
 export const links = () => [{ rel: "stylesheet", href: globalStylesUrl }];
 
 const Layout: FC = ({ children }) => {
+  const { user } = useLoaderData();
+
   return (
     <>
       <nav className="navbar">
@@ -34,9 +47,19 @@ const Layout: FC = ({ children }) => {
         </Link>
 
         <ul className="nav">
-          <li>
-            <Link to="/posts">Posts</Link>
-          </li>
+          {user ? (
+            <li>
+              <form action="/auth/logout" method="POST">
+                <button type="submit" className="btn">
+                  Logout {user.username}
+                </button>
+              </form>
+            </li>
+          ) : (
+            <li>
+              <Link to="/auth/login">Login</Link>
+            </li>
+          )}
         </ul>
       </nav>
 

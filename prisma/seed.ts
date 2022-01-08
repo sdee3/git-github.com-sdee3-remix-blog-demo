@@ -1,6 +1,6 @@
 import { PrismaClient } from "@prisma/client";
 
-const db = new PrismaClient();
+const prisma = new PrismaClient();
 
 const getPosts = () => {
   return [
@@ -11,9 +11,19 @@ const getPosts = () => {
 };
 
 const seed = async () => {
+  const dummyUser = await prisma.user.create({
+    data: {
+      username: "john",
+      // Hash for password - twixrox
+      passwordHash:
+        "$2b$10$K7L1OJ45/4Y2nIvhRVpCe.FSmhDdWoXehVzJptJ/op0lSsvqNu/1u",
+    },
+  });
+
   await Promise.all(
     getPosts().map((post) => {
-      return db.post.create({ data: post });
+      const data = { userId: dummyUser.id, ...post };
+      return prisma.post.create({ data });
     })
   );
 };

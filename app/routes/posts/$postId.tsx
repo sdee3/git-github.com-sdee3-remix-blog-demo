@@ -6,8 +6,10 @@ import {
   useLoaderData,
 } from "remix";
 import { db } from "~/utils/db.server";
+import { getUser } from "~/utils/session.server";
 
-export const loader: LoaderFunction = async ({ params }) => {
+export const loader: LoaderFunction = async ({ params, request }) => {
+  const user = await getUser(request);
   const post = await db.post.findUnique({
     where: {
       id: params.postId,
@@ -16,13 +18,16 @@ export const loader: LoaderFunction = async ({ params }) => {
 
   if (!post) throw new Error("Post not found!");
 
-  return { post };
+  const data = { post, user };
+
+  return data;
 };
 
 export const action: ActionFunction = async ({ params, request }) => {
   const form = await request.formData();
 
   if (form.get("_method") === "delete") {
+    const user = await getUser(request);
     const post = await db.post.findUnique({
       where: {
         id: params.postId,
@@ -31,13 +36,17 @@ export const action: ActionFunction = async ({ params, request }) => {
 
     if (!post) throw new Error("Post not found!");
 
-    await db.post.delete({ where: { id: params.postId } });
-    return redirect("/posts");
+    if (user && post.userId === user.id) {
+      await db.post.delete({ where: { id: params.postId } });
+      return redirect("/posts");
+    }
+
+    throw new Error("User not found!");
   }
 };
 
 const Post = () => {
-  const { post } = useLoaderData();
+  const { post, user } = useLoaderData();
 
   return (
     <div>
@@ -50,10 +59,12 @@ const Post = () => {
       <div className="page-content">{post.body}</div>
 
       <div className="page-footer">
-        <form method="POST">
-          <input type="hidden" name="_method" value="delete" />
-          <button className="btn btn-delete">Delete</button>
-        </form>
+        {user.id === post.userId && (
+          <form method="POST">
+            <input type="hidden" name="_method" value="delete" />
+            <button className="btn btn-delete">Delete</button>
+          </form>
+        )}
       </div>
     </div>
   );
